@@ -10,6 +10,7 @@ var mime = require('mime');
 var bodyParser = require('body-parser');
 var socketio = require('socket.io');
 
+
 // templating boilerplate setup
 app.engine('html', nunjucks.render); // how to render html templates
 app.set('view engine', 'html'); // what file extension do our templates have
