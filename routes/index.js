@@ -26,49 +26,47 @@ module.exports = function makeRouterWithSockets (io) {
       if (err) return next(err);
       res.render('index', { title: 'Twitter.js', tweets: result.rows, showForm: true});
     });
-    // tweetBank.find({ name: req.params.username });
-    // res.render('index', {
-    //   title: 'Twitter.js',
-    //   tweets: tweetsForName,
-    //   showForm: true,
-    //   username: req.params.username
-    // });
   });
 
   // single-tweet page
   router.get('/tweets/:id', function(req, res, next){
     var tweetID = req.params.id;
+    console.log(req.params);
+    console.log(req.params.id);
     client.query('SELECT * FROM tweets INNER JOIN users ON users.id = tweets.user_id WHERE tweets.id = $1', [tweetID], function(err, result) {
       if(err) return next(err);
       res.render('index', {title: 'Twitter.js', tweets: result.rows, showForm: false});
     });
-
-    // tweetBank.find({ id: Number(req.params.id) });
-    // res.render('index', {
-    //   title: 'Twitter.js',
-    //   tweets: tweetsWithThatId // an array of only one element ;-)
-    // });
   });
 
   // create a new tweet
   router.post('/tweets', function(req, res, next){
-    //user exists
-    var tweetContent = req.body.content;
-    var username = req.body.name;
-    var userID = client.query('SELECT id FROM users WHERE name = $1',[username], function(err, result) {
-      if(err) return next(err);
-      return result;
-    });
-    var newTweet = client.query('INSERT INTO tweets (content, user_id) values ($1, $2)', [tweetContent, userID], function(err, result) {
-      if(err) return next(err);
-      res.redirect('/');
-    });
-    io.sockets.emit('new_tweet', newTweet);
-    res.redirect('/');
-    //user does not exist
-    var newTweet = client.query('INSERT INTO tweets');
-    io.sockets.emit('new_tweet', newTweet);
-    res.redirect('/');
+
+    client.query('SELECT * FROM users WHERE users.name = $1', [req.body.name], checkID);
+
+    function checkID(err, result) {
+
+      if(err) return next(err)
+      if(!result.rows.length) {
+        makeUser()
+      } else {
+        setTweet(null, result)
+      }
+    }
+
+    function makeUser() {
+      client.query('INSERT INTO users (name) values ($1) RETURNING *', [req.body.name], setTweet)
+    }
+
+    function allDone(err) {
+      if (err) return next(err)
+      res.redirect('/')
+    }
+
+    function setTweet(err, result) {
+      var user_id = result.rows[0].id;
+      client.query('INSERT INTO tweets (user_id, content) values ($1, $2)', [user_id, req.body.content], allDone);
+    }
   });
 
   // // replaced this hard-coded route with general static routing in app.js
@@ -78,3 +76,5 @@ module.exports = function makeRouterWithSockets (io) {
 
   return router;
 }
+
+
